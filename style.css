@@ -1,0 +1,142 @@
+/* Reset e configurações gerais */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body {
+  height: 100%;
+  font-family: Arial, sans-serif;
+  background: #000;
+  color: #00ff00;
+}
+.container {
+  width: 90%;
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #111;
+  border-radius: 8px;
+  text-align: center;
+}
+h1, h2, h3 {
+  margin-bottom: 10px;
+}
+.btn {
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 1em;
+  background-color: #00cc00;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn:hover {
+  background-color: #333;
+}
+.message {
+  margin: 10px 0;
+  font-size: 1.2em;
+  min-height: 40px;
+}
+/* Informação sobre a contagem de cartas */
+.info {
+  margin: 10px 0;
+  font-size: 1em;
+  color: #00ff00;
+}
+
+/* Cartas (estilo geral) */
+.card {
+  width: 12vw;
+  max-width: 80px;
+  aspect-ratio: 2/3;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  font-weight: bold;
+  font-size: 1.5em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: #fff;
+  background: #222;
+  cursor: grab;
+  margin: 5px; /* espaço entre cartas no grid */
+}
+.card:active {
+  cursor: grabbing;
+}
+/* Cores das cartas */
+.card.red { background: #ff5c5c; }
+.card.blue { background: #49a0ff; }
+.card.green { background: #4fd14f; }
+.card.yellow { background: #ffd142; color: #000; }
+
+/* Zonas de drop (mão, grupos, descarte) */
+.dropzone {
+  border: 2px dashed #00ff00;
+  border-radius: 8px;
+  min-height: 100px;
+  padding: 10px;
+  margin: 10px;
+  flex: 1;
+  position: relative;
+}
+.dropzone.over {
+  border-color: #00cc00;
+  background: rgba(0,255,0,0.1);
+}
+.dropzone h3 {
+  margin-bottom: 5px;
+  font-size: 1em;
+}
+
+/* Ajuste específico para a Mão: 3 cartas por linha */
+#playerHand {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: center;
+  gap: 10px;
+  margin: 10px auto;
+}
+
+/* Container dos grupos (mantém layout flex) */
+#groupsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Pilha de Descarte: layout em grid com até 5 por linha */
+.discard-zone {
+  max-width: 600px;
+}
+.discard-cards {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+/* Footer */
+.footer {
+  margin-top: 20px;
+  font-size: 0.9em;
+  color: #ccc;
+}
+/* Ajustes para mobile */
+@media (max-width: 600px) {
+  .card {
+    width: 20vw;
+    max-width: 60px;
+    font-size: 1.2em;
+  }
+  #playerHand {
+    grid-template-columns: repeat(2, auto); /* Exemplo: 2 cartas por linha em telas menores */
+  }
+}
