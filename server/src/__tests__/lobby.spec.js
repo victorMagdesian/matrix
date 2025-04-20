@@ -1,46 +1,46 @@
 // server/src/__tests__/lobby.spec.js
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { queues as lobbyQueues, joinQueue, leaveQueue, removeFromAll } from '../lobby.js'
+import * as lobby from '../lobby.js'
 
 describe('server lobby logic', () => {
   let fakeSocket
 
   beforeEach(() => {
-    // limpa filas
-    lobbyQueues[2] = []
-    lobbyQueues[3] = []
+    // limpa filas antes de cada teste
+    lobby.queues[2] = []
+    lobby.queues[3] = []
 
-    // socket com id e spies
+    // socket fake com spies
     fakeSocket = { id: 'S1', join: vi.fn(), emit: vi.fn() }
   })
 
   it('deve enfileirar e retornar null se grupo incompleto', () => {
-    const result = joinQueue(2, fakeSocket)
-    expect(lobbyQueues[2]).toContain(fakeSocket)
+    const result = lobby.joinQueue(2, fakeSocket)
+    expect(lobby.queues[2]).toContain(fakeSocket)
     expect(result).toBeNull()
   })
 
   it('deve formar sala e notificar quando fila completa', () => {
-    // preenche primeira posição
-    lobbyQueues[2] = [{ id: 'X', join: vi.fn(), emit: vi.fn() }]
-    const ret = joinQueue(2, fakeSocket)
+    // pré-popula uma posição
+    lobby.queues[2] = [{ id: 'X', join: vi.fn(), emit: vi.fn() }]
+    const ret = lobby.joinQueue(2, fakeSocket)
     expect(ret).toHaveProperty('room')
     expect(ret.players).toEqual(['X','S1'])
-    // fila deve estar vazia após splice
-    expect(lobbyQueues[2]).toHaveLength(0)
+    // a fila deve ter sido esvaziada
+    expect(lobby.queues[2]).toHaveLength(0)
   })
 
   it('leaveQueue remove socket da fila', () => {
-    lobbyQueues[3] = [fakeSocket]
-    leaveQueue(3, fakeSocket)
-    expect(lobbyQueues[3]).not.toContain(fakeSocket)
+    lobby.queues[3] = [fakeSocket]
+    lobby.leaveQueue(3, fakeSocket)
+    expect(lobby.queues[3]).not.toContain(fakeSocket)
   })
 
   it('removeFromAll limpa todas as filas', () => {
-    lobbyQueues[2] = [fakeSocket]
-    lobbyQueues[3] = [fakeSocket]
-    removeFromAll(fakeSocket)
-    expect(lobbyQueues[2]).toHaveLength(0)
-    expect(lobbyQueues[3]).toHaveLength(0)
+    lobby.queues[2] = [fakeSocket]
+    lobby.queues[3] = [fakeSocket]
+    lobby.removeFromAll(fakeSocket)
+    expect(lobby.queues[2]).toHaveLength(0)
+    expect(lobby.queues[3]).toHaveLength(0)
   })
 })
