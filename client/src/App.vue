@@ -1,23 +1,39 @@
 <template>
   <div id="app" class="min-h-screen flex items-center justify-center">
-    <ModeSelect    v-if="status === 'idle'"    />
-    <WaitingRoom   v-else-if="status === 'waiting'" />
-    <GameRoom      v-else-if="status === 'matched'" />
+    <transition name="fade" mode="out-in">
+      <component :is="currentComponent" key="lobby-status" />
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useLobbyStore } from './stores/lobby'
-import ModeSelect    from './components/ModeSelect.vue'
-import WaitingRoom   from './components/WaitingRoom.vue'
-import GameRoom      from './components/GameRoom.vue'
+import ModeSelect  from './components/ModeSelect.vue'
+import WaitingRoom from './components/WaitingRoom.vue'
+import GameRoom    from './components/GameRoom.vue'
 
 const lobby = useLobbyStore()
 const status = computed(() => lobby.status)
+
+const currentComponent = computed(() => {
+  if (status.value === 'idle') return ModeSelect
+  if (status.value === 'waiting') return WaitingRoom
+  if (status.value === 'matched') return GameRoom
+})
 </script>
 
 <style>
-/* só pra centralizar melhor, depois você personaliza */
-#app { background: #1a1a1a; color: #fff; }
+#app {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* Fade transition */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
 </style>
