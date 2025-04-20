@@ -6,15 +6,9 @@ module.exports = {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        sans: ['Inter', 'sans-serif']
-      },
+      fontFamily: { sans: ['Inter','sans-serif'] },
       colors: {
-        primary: {
-          DEFAULT: '#7c3aed',
-          light:   '#a78bfa',
-          dark:    '#5b21b6'
-        }
+        primary: { DEFAULT: '#7c3aed', light: '#a78bfa', dark: '#5b21b6' }
       }
     }
   },
