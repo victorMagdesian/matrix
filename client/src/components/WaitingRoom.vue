@@ -11,9 +11,9 @@
         Cancelar
       </button>
   
-      <!-- Banner de reconexão -->
+      <!-- Banner de reconexão via store -->
       <div
-        v-if="disconnected"
+        v-if="lobby.isReconnecting"
         class="mt-4 p-2 bg-yellow-600 text-yellow-100 rounded"
       >
         Reconectando ao servidor…
@@ -22,7 +22,7 @@
   </template>
   
   <script setup>
-  import { ref, onMounted, onUnmounted, watch } from 'vue'
+  import { ref, onMounted, onUnmounted } from 'vue'
   import { useLobbyStore } from '../stores/lobby'
   
   const lobby = useLobbyStore()
@@ -31,26 +31,11 @@
   const countdown = ref(30)
   let intervalId = null
   
-  // flag de desconexão: true se socket estiver desconectado
-  const disconnected = ref(false)
-  
   onMounted(() => {
-    // inicia o countdown
     intervalId = setInterval(() => {
-      if (countdown.value > 0) {
-        countdown.value--
-      } else {
-        clearInterval(intervalId)
-      }
+      if (countdown.value > 0) countdown.value--
+      else clearInterval(intervalId)
     }, 1000)
-  
-    // observa estado de conexão do socket
-    lobby.socket.on('disconnect', () => {
-      disconnected.value = true
-    })
-    lobby.socket.on('reconnect', () => {
-      disconnected.value = false
-    })
   })
   
   onUnmounted(() => {
