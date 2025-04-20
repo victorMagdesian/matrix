@@ -25,7 +25,6 @@ const io = new Server(httpServer, {
   cors: { origin: '*' }
 })
 
-// 🎮 Evento por jogador conectado
 io.on('connection', (socket) => {
   console.log(`[+] Conectado: ${socket.id}`)
 
@@ -38,20 +37,24 @@ io.on('connection', (socket) => {
     if (match) {
       const { room, players } = match
 
-      players.forEach(p => {
-        p.join(room)
-        console.log(`[+] Adicionando ${p.id} na sala ${room}`)
+      // Corrigido: players são IDs, não socket instances
+      players.forEach(playerId => {
+        const s = io.sockets.sockets.get(playerId)
+        if (!s) {
+          console.warn('⚠️ Socket não encontrado:', playerId)
+          return
+        }
+        s.join(room)
       })
 
-      io.to(room).emit('matchFound', { room, players })
 
-      const playerIds = players.map(p => p.id) // socket.id atual
-      const initialState = startGame(room, playerIds)
+      io.to(room).emit('matchFound', { room, players: players })
 
+      console.log('🎮 startGame chamado com jogadores:', players)
+      const initialState = startGame(room, players)
 
-      startGame(room, players)
-      io.to(room).emit('stateUpdate', gameStates[room])
-
+      console.log('📦 Estado inicial da sala:', initialState)
+      io.to(room).emit('stateUpdate', initialState)
     }
   })
 
@@ -90,6 +93,7 @@ io.on('connection', (socket) => {
 function syncState(room) {
   const state = gameStates[room]
   if (state) {
+    console.log(`🛰️ Enviando stateUpdate para sala ${room}`)
     io.to(room).emit('stateUpdate', state)
   }
 }
