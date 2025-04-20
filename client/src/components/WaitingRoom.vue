@@ -15,7 +15,7 @@
   const lobby = useLobbyStore()
   
   function cancel() {
-    lobby.leave(lobby.mode)
+    lobby.leave()
   }
   </script>
   
