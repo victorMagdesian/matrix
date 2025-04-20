@@ -30,3 +30,31 @@ export function startGame(room, playerIds) {
 
   return gameStates[room]
 }
+
+/**
+ * Move o topo da pilha de descarte de fromPlayerId para a mão de playerId.
+ */
+export function drawDiscard(room, playerId, fromPlayerId) {
+    const state = gameStates[room]
+    if (!state) throw new Error(`Room ${room} not found`)
+    const pile = state.discardPiles[fromPlayerId]
+    if (!pile || pile.length === 0) return
+    const card = pile.pop()
+    state.hands[playerId].push(card)
+  }
+  
+  /**
+   * Remove card da mão de playerId e adiciona à sua pilha de descarte.
+   * Avança o turno.
+   */
+  export function discard(room, playerId, card) {
+    const state = gameStates[room]
+    if (!state) throw new Error(`Room ${room} not found`)
+    const hand = state.hands[playerId]
+    const idx = hand.findIndex(c => c.color === card.color && c.value === card.value)
+    if (idx === -1) throw new Error(`Card not found in hand for player ${playerId}`)
+    const [removed] = hand.splice(idx, 1)
+    state.discardPiles[playerId].push(removed)
+    // Avança o índice de turno
+    state.currentTurnIndex = (state.currentTurnIndex + 1) % state.turnOrder.length
+  }
