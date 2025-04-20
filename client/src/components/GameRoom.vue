@@ -12,7 +12,7 @@
     </ul>
     <!-- Aqui entra seu componente/canvas do jogo Matrix -->
     <div class="mt-6">
-      <!-- <MatrixCanvas :room="room" /> -->
+      <MatrixCanvas :room="room" />
     </div>
   </div>
 </template>
