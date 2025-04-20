@@ -1,5 +1,14 @@
 import { createApp } from 'vue'
-import './style.css'
+import { createPinia } from 'pinia'
 import App from './App.vue'
+import { useLobbyStore } from './stores/lobby'
 
-createApp(App).mount('#app')
+const app = createApp(App)
+const pinia = createPinia()
+app.use(pinia)
+
+// Conecta WebSocket antes de montar a app
+const lobby = useLobbyStore()
+lobby.connect()
+
+app.mount('#app')
