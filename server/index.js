@@ -36,27 +36,29 @@ io.on('connection', socket => {
   // 🎮 LOBBY
   socket.on('joinQueue', mode => {
     const match = joinQueue(mode, socket)
-    if (!match) return
+    if (match) {
+      // players === array de IDs; sockets === array de objetos Socket
+      const { room, players: ids, sockets } = match
 
-    const { room, players } = match
-    const ids = players.map(p => p.id)
-    players.forEach(p => p.join(room))
+      // faz cada socket entrar na sala
+      sockets.forEach(s => s.join(room))
 
-    console.log(`🎮 Match ${room} criado com`, ids.join(', '))
-    const init = startGame(room, ids)
+      // notifica matchFound apenas com os IDs
+      io.to(room).emit('matchFound', { room, players: ids })
 
-    io.to(room).emit('matchFound', { room, players: ids })
-    io.to(room).emit('stateUpdate', init)
+      const initialState = startGame(room, ids)
+      io.to(room).emit('stateUpdate', initialState)
+    }
   })
 
   socket.on('leaveQueue', mode => leaveQueue(mode, socket))
   socket.on('disconnect', () => removeFromAll(socket))
 
   // 🕹️ GAMEPLAY
-  socket.on('drawDeck',   ({ room })        => { drawDeck(room, socket.id);        sync(room) })
-  socket.on('discard',    ({ room, card })  => { discard(room, socket.id, card);   sync(room) })
-  socket.on('meld',       ({ room, cards }) => { meld(room, socket.id, cards);     sync(room) })
-  socket.on('checkVictory', ({ room })      => {
+  socket.on('drawDeck', ({ room }) => { drawDeck(room, socket.id); sync(room) })
+  socket.on('discard', ({ room, card }) => { discard(room, socket.id, card); sync(room) })
+  socket.on('meld', ({ room, cards }) => { meld(room, socket.id, cards); sync(room) })
+  socket.on('checkVictory', ({ room }) => {
     const won = checkVictory(room, socket.id)
     socket.emit('victoryResult', { won })
   })
