@@ -20,6 +20,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useLobbyStore } from '../stores/lobby'
+import MatrixCanvas from './MatrixCanvas.vue'
 
 const lobby = useLobbyStore()
 const room = computed(() => lobby.room)
