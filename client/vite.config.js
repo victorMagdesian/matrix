@@ -1,3 +1,4 @@
+// client/vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwind from '@tailwindcss/vite'
@@ -5,6 +6,6 @@ import tailwind from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     vue(),
-    tailwind()        // ⬅️ plugin do Tailwind para Vite
-  ]
+    tailwind()
+  ],
 })

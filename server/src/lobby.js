@@ -1,33 +1,22 @@
-// server/src/lobby.js
+// salas de espera por modo
 export const queues = { 2: [], 3: [] }
 
-/**
- * Adiciona socket à fila e retorna room+players se completar o grupo.
- */
+/** adiciona à fila e retorna match se completar */
 export function joinQueue(mode, socket) {
   queues[mode].push(socket)
   if (queues[mode].length >= mode) {
-    const room    = `room_${Date.now()}`
-    const group   = queues[mode].splice(0, mode)
-    const players = group.map(s => s.id)
-    // notificações de sala
-    group.forEach(s => {
-      s.join(room)
-      s.emit('matchFound', { room, players })
-    })
-    return { room, players }
+    const room  = `room_${Date.now()}`
+    const group = queues[mode].splice(0, mode)
+    const ids   = group.map(s => s.id)
+    group.forEach(s => s.join(room))
+    return { room, players: ids }
   }
   return null
 }
 
-/** Remove socket da fila do modo indicado */
 export function leaveQueue(mode, socket) {
   queues[mode] = queues[mode].filter(s => s.id !== socket.id)
 }
-
-/** Remove socket de todas as filas (disconnect) */
 export function removeFromAll(socket) {
-  [2,3].forEach(mode => {
-    queues[mode] = queues[mode].filter(s => s.id !== socket.id)
-  })
+  [2,3].forEach(m => leaveQueue(m, socket))
 }

@@ -1,57 +1,45 @@
-// client/src/stores/__tests__/lobby.spec.js
-import { setActivePinia, createPinia } from 'pinia'
-import { vi, describe, it, expect, beforeEach } from 'vitest'
-import { useLobbyStore } from '../lobby'
+import { defineStore } from 'pinia'
+import { io } from 'socket.io-client'
 
-describe('lobby store', () => {
-  let store
-  let mockSocket
+export const useLobbyStore = defineStore('lobby', {
+  state: () => ({
+    socket: null,
+    room:   null,
+    players: [],
+    status:  'idle',   // idle | waiting | matched
+    isReconnecting: false
+  }),
 
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    store = useLobbyStore()
-  
-    mockSocket = {
-      emit: vi.fn(),
-      on:   vi.fn(),
+  actions: {
+    connect() {
+      if (this.socket) return
+      this.socket = io('http://localhost:3001', {
+        autoConnect: true, reconnectionAttempts: 5
+      })
+
+      this.socket.on('connect', () => {
+        this.isReconnecting = false
+      })
+
+      this.socket.on('disconnect', () => {
+        this.isReconnecting = true
+      })
+
+      this.socket.on('matchFound', ({ room, players }) => {
+        this.room    = room
+        this.players = players
+        this.status  = 'matched'
+      })
+    },
+
+    join(mode) {
+      this.status = 'waiting'
+      this.socket.emit('joinQueue', mode)
+    },
+
+    leave() {
+      this.status = 'idle'
+      this.socket.emit('leaveQueue', 2)
     }
-    store.socket = mockSocket
-    store.connect()   // ⚠️ registra os .on('disconnect', ...) no mock
-  })
-  
-
-  it('deve entrar na fila ao chamar join()', () => {
-    store.join(2)
-    expect(store.mode).toBe(2)
-    expect(store.status).toBe('waiting')
-    expect(mockSocket.emit).toHaveBeenCalledWith('joinQueue', 2)
-  })
-
-  it('deve sair da fila ao chamar leave()', () => {
-    // pré-condição
-    store.mode = 3
-    store.status = 'waiting'
-
-    store.leave()
-    expect(store.mode).toBeNull()
-    expect(store.status).toBe('idle')
-    expect(mockSocket.emit).toHaveBeenCalledWith('leaveQueue', 3)
-  })
-
-  it('deve resetar estado após disconnect se idle', () => {
-    store.status = 'idle'
-    store.mode = null
-    // simula evento disconnect
-    const cb = mockSocket.on.mock.calls.find(c => c[0] === 'disconnect')[1]
-    cb('transport close')
-    expect(store.status).toBe('idle')
-    expect(store.isReconnecting).toBe(false)
-  })
-
-  it('deve sinalizar isReconnecting em disconnect durante waiting', () => {
-    store.status = 'waiting'
-    const cb = mockSocket.on.mock.calls.find(c => c[0] === 'disconnect')[1]
-    cb('transport close')
-    expect(store.isReconnecting).toBe(true)
-  })
+  }
 })

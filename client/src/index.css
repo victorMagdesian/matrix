@@ -1,7 +1,11 @@
-@import "tailwindcss";   /* importa base, components e utilities */
+@import "tailwindcss";
 
-@layer base {            /* aqui seu CSS customizado */
+/* your custom base styles */
+@layer base {
   html {
-    @apply bg-gray-900 text-gray-100;
+    @apply bg-gray-900 text-gray-100 font-sans;
+  }
+  body {
+    margin: 0;
   }
 }
