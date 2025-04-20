@@ -1,15 +1,23 @@
+// server/index.js
 import express from 'express'
-import cors    from 'cors'
-import http    from 'http'
+import cors from 'cors'
+import http from 'http'
 import { Server } from 'socket.io'
 
 import {
-  queues, joinQueue, leaveQueue, removeFromAll
+  queues,
+  joinQueue,
+  leaveQueue,
+  removeFromAll
 } from './src/lobby.js'
 
 import {
-  startGame, drawDeck, discard, meld,
-  gameStates, checkVictory
+  startGame,
+  drawDeck,
+  discard,
+  meld,
+  checkVictory,
+  gameStates
 } from './src/game.js'
 
 const app = express()
@@ -18,36 +26,47 @@ const httpServer = http.createServer(app)
 const io = new Server(httpServer, { cors: { origin: '*' } })
 
 const sync = room => {
-  const st = gameStates[room]
-  if (st) io.to(room).emit('stateUpdate', st)
+  const s = gameStates[room]
+  if (s) io.to(room).emit('stateUpdate', s)
 }
 
 io.on('connection', socket => {
   console.log('🟢', socket.id, 'conectado')
 
-  /* Lobby */
-  socket.on('joinQueue', mode => { /* … */ })
-  socket.on('leaveQueue', mode => leaveQueue(mode, socket))
-  socket.on('disconnect',    () => removeFromAll(socket))
+  // 🎮 LOBBY
+  socket.on('joinQueue', mode => {
+    const match = joinQueue(mode, socket)
+    if (!match) return
 
-  /* Gameplay */
+    const { room, players } = match
+    const ids = players.map(p => p.id)
+    players.forEach(p => p.join(room))
+
+    console.log(`🎮 Match ${room} criado com`, ids.join(', '))
+    const init = startGame(room, ids)
+
+    io.to(room).emit('matchFound', { room, players: ids })
+    io.to(room).emit('stateUpdate', init)
+  })
+
+  socket.on('leaveQueue', mode => leaveQueue(mode, socket))
+  socket.on('disconnect', () => removeFromAll(socket))
+
+  // 🕹️ GAMEPLAY
   socket.on('drawDeck',   ({ room })        => { drawDeck(room, socket.id);        sync(room) })
   socket.on('discard',    ({ room, card })  => { discard(room, socket.id, card);   sync(room) })
   socket.on('meld',       ({ room, cards }) => { meld(room, socket.id, cards);     sync(room) })
-
-  /* Checagem de vitória */
-  socket.on('checkVictory', ({ room }) => {
+  socket.on('checkVictory', ({ room })      => {
     const won = checkVictory(room, socket.id)
     socket.emit('victoryResult', { won })
   })
 
-  /* Re‐sync manual */
   socket.on('getState', ({ room }) => {
-    const st = gameStates[room]
-    if (st) socket.emit('stateUpdate', st)
+    const s = gameStates[room]
+    if (s) socket.emit('stateUpdate', s)
   })
 })
 
-httpServer.listen(3001, () =>
+httpServer.listen(3001, () => {
   console.log('🚀  Servidor em http://localhost:3001')
-)
+})

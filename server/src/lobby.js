@@ -1,38 +1,44 @@
 // server/src/lobby.js
-// -------------------
-// Contém APENAS lógica de pareamento para 2 e 3 jogadores.
 
-const queues = { 2: [], 3: [] }
+export const queues = { 2: [], 3: [] }
 
 /**
- * Enfileira socket; quando há jogadores suficientes devolve
- *   { room: 'room_...', players: [socketA, socketB, …] }
+ * Adiciona um jogador à fila do modo especificado.
+ * Se a fila atingir o número necessário, retorna { room, players }.
  */
-function joinQueue (mode, socket) {
+export function joinQueue(mode, socket) {
   const list = queues[mode]
-  if (!list) return
+  if (!list) return null
 
-  if (list.find(p => p.id === socket.id)) return   // já estava na fila
+  if (list.some(s => s.id === socket.id)) return null
+
   list.push(socket)
 
   if (list.length >= mode) {
     const players = list.splice(0, mode)
-    const room    = `room_${Date.now()}`
+    const room = `room_${Date.now()}`
     return { room, players }
   }
+
+  return null
 }
 
-/* Remove jogador de uma fila específica */
-function leaveQueue (mode, socket) {
+/**
+ * Remove o socket da fila de um modo.
+ */
+export function leaveQueue(mode, socket) {
   const list = queues[mode]
   if (!list) return
-  const i = list.findIndex(p => p.id === socket.id)
-  if (i !== -1) list.splice(i, 1)
+  const idx = list.findIndex(s => s.id === socket.id)
+  if (idx !== -1) list.splice(idx, 1)
 }
 
-/* Remove jogador de todas as filas (disconnect) */
-function removeFromAll (socket) {
-  [2, 3].forEach(mode => leaveQueue(mode, socket))
+/**
+ * Remove o socket de todas as filas.
+ */
+export function removeFromAll(socket) {
+  Object.values(queues).forEach(list => {
+    const idx = list.findIndex(s => s.id === socket.id)
+    if (idx !== -1) list.splice(idx, 1)
+  })
 }
-
-export { queues, joinQueue, leaveQueue, removeFromAll }
