@@ -1,45 +1,46 @@
 <!-- client/src/components/GameRoom.vue -->
 <template>
-  <div v-if="room && players.length" class="game-room mx-auto max-w-4xl space-y-6">
-    <!-- Header -->
+  <div v-if="room" class="game-room mx-auto max-w-4xl space-y-6">
+    <!-- Cabeçalho -->
     <div class="flex justify-between items-center">
       <h2 class="text-2xl font-bold">
         Sala: <span class="text-primary">{{ room }}</span>
       </h2>
       <p class="text-sm">
         Turno: <strong>{{ currentPlayerLabel }}</strong>
-        <span v-if="myTurn"> – {{ phaseLabel }}</span>
+        <span v-if="myTurn"> · {{ phaseLabel }}</span>
       </p>
     </div>
 
-    <!-- Canvas (animações etc.) -->
+    <!-- Canvas ou animações -->
     <MatrixCanvas :room="room" />
 
     <!-- Área principal -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Mão do jogador -->
       <Hand
+        class="lg:col-span-2"
         :cards="myHand"
         :selected="selected"
         :phase="state.phase"
         :myTurn="myTurn"
         @update:selected="selected = $event"
         @discard="onDiscard"
-        class="lg:col-span-2"
       />
 
-      <!-- Pilhas de descarte abertas -->
+      <!-- Pilhas de descarte -->
       <DiscardPile
-        :DiscardPile="state.DiscardPile"
-        @draw="onDraw"
         class="lg:col-span-1"
+        :DiscardPile="state.DiscardPile"
+        :cards="state.cards"
+        @draw="onDraw"
       />
     </div>
 
-    <!-- Botão DESCARTAR (caso prefira clicar em botão) -->
+    <!-- Botão de descartar (opcional) -->
     <div v-if="myTurn && state.phase === 'discard'" class="flex justify-center">
       <button
-        class="px-6 py-2 mt-2 rounded-lg bg-yellow-400 text-black font-semibold disabled:opacity-40"
+        class="px-6 py-2 mt-4 rounded-lg bg-yellow-400 text-black font-semibold disabled:opacity-40"
         :disabled="selected.length !== 1"
         @click="onDiscard(mySelectedCard)"
       >
@@ -50,38 +51,36 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+/* eslint-disable vue/no-mutating-props */
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useLobbyStore } from '../stores/lobby'
-import MatrixCanvas   from './MatrixCanvas.vue'
-import Hand           from './Hand.vue'
-import DiscardPile    from './DiscardPile.vue'
+import MatrixCanvas  from './MatrixCanvas.vue'
+import Hand          from './Hand.vue'
+import DiscardPile   from './DiscardPile.vue'
 
-/* ───────── refs e estado global ───────── */
-const lobby   = useLobbyStore()
-const socket  = window.socket
-const room    = computed(() => lobby.room)
-const players = computed(() => lobby.players || [])
-const myId    = ref(socket?.id)
+/* ───────── refs globais ───────── */
+const lobby  = useLobbyStore()
+const socket = lobby.socket
+const room   = computed(() => lobby.room)
+const myId   = computed(() => lobby.playerId || socket.id)
 
-/* ───────── estado recebido do servidor ───────── */
+/* ───────── estado do jogo ───────── */
 const state = reactive({
-  hands          : {},
-  DiscardPile    : {},
-  melds          : {},
-  turnOrder      : [],
+  cards       : {},       // id -> { color, value, owner }
+  hands       : {},
+  DiscardPile : {},       // pid -> [id]
+  melds       : {},
+  turnOrder   : [],
   currentTurnIdx : 0,
   phase          : 'draw'
 })
 
-/* ───────── seleção de cartas ───────── */
-const selected = ref([]) // armazena os __uid das cartas clicadas
+/* ───────── seleção na mão ───────── */
+const selected = ref([])
 
-/* ───────── computeds de conveniência ───────── */
-const currentIdx = computed(() =>
-  state.currentTurnIdx ?? state.currentTurnIndex ?? 0
-)
-
-const myTurn = computed(() => state.turnOrder[currentIdx.value] === myId.value)
+/* ───────── computeds auxiliares ───────── */
+const currentIdx  = computed(() => state.currentTurnIdx)
+const myTurn      = computed(() => state.turnOrder[currentIdx.value] === myId.value)
 
 const phaseLabel = computed(() =>
   state.phase === 'draw' ? 'comprar' :
@@ -93,53 +92,46 @@ const currentPlayerLabel = computed(() => {
   return pid === myId.value ? 'Você' : pid.slice(-4)
 })
 
-/* retorna array da mão do jogador já com __uid exclusivo por carta */
 const myHand = computed(() => {
-  const hand = state.hands[myId.value] || []
-  return hand.map((c, idx) => ({ ...c, __uid: `${myId.value}-${idx}` }))
+  if (!state.cards) return []
+  return Object.entries(state.cards)
+    .filter(([, c]) => c.owner === myId.value)
+    .map(([id, c]) => ({ __uid: id, ...c }))
 })
 
-/* carta realmente selecionada (utilizado no botão) */
 const mySelectedCard = computed(() =>
   myHand.value.find(c => selected.value.includes(c.__uid))
 )
 
-/* ───────── listener de estado enviado pelo servidor ───────── */
+/* ───────── helpers ───────── */
+function requestState (r) {
+  if (r) socket.emit('getState', { room: r })
+}
+
+/* ───────── listeners ───────── */
 onMounted(() => {
-  socket.on('connect', () => (myId.value = socket.id))
-
-  socket.on('stateUpdate', data => {
-    Object.assign(state, data)
-  })
-
-  socket.on('gameStart', data => {
-    Object.assign(state, data)
-  })
+  socket.on('stateUpdate', data => Object.assign(state, data))
+  requestState(room.value)         // garante sync se montou tarde
 })
 
-/* ───────── ações de UI -> servidor ───────── */
+watch(room, (n, o) => {
+  if (n && n !== o) requestState(n)
+})
+
+/* ───────── ações de UI ───────── */
 function onDraw(fromPlayerId) {
-  if (myTurn.value && state.phase === 'draw' && room.value) {
-    socket.emit('drawDiscard', {
-      room: room.value,
-      fromPlayerId
-    })
+  if (myTurn.value && state.phase === 'draw') {
+    socket.emit('drawDiscard', { room: room.value, fromPlayerId })
   }
 }
 
 function onDiscard(card) {
-  if (
-    myTurn.value &&
-    state.phase === 'discard' &&
-    card &&
-    room.value
-  ) {
-    socket.emit('discard', {
-      room : room.value,
-      card : { color: card.color, value: card.value }
-    })
-    selected.value = []
-  }
+  if (!card || !myTurn.value || state.phase !== 'discard') return
+  socket.emit('discard', {
+    room: room.value,
+    card: { color: card.color, value: card.value }
+  })
+  selected.value = []
 }
 </script>
 
