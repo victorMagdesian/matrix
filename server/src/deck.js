@@ -58,7 +58,7 @@ export class Card {
    * @param {2|3} mode Número de jogadores
    * @returns {{
    *   hands: Record<string, Card[]>,
-   *   discardPiles: Record<string, Card[]>
+   *   DiscardPile: Record<string, Card[]>
    * }}
    */
   export function deal(deck, mode, playerIds) {
@@ -67,13 +67,13 @@ export class Card {
       throw new Error(`Deck size ${deck.length} não compatível com mode ${mode}`);
     }
     const hands = {};
-    const discardPiles = {};
+    const DiscardPile = {};
     for (let i = 0; i < mode; i++) {
       const pid = playerIds[i];
       const hand = deck.slice(i * perHand, (i + 1) * perHand);
       hands[pid] = [...hand];
-      discardPiles[pid] = []; // começa vazia
+      DiscardPile[pid] = []; // começa vazia
     }
-    return { hands, discardPiles };
+    return { hands, DiscardPile };
   }
   

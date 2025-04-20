@@ -1,54 +1,99 @@
-import express  from 'express'
-import http     from 'http'
-import cors     from 'cors'
+import express from 'express'
+import http from 'http'
+import cors from 'cors'
 import { Server } from 'socket.io'
 
-import { queues, joinQueue, leaveQueue, removeFromAll } from './src/lobby.js'
-import { startGame, drawDiscard, discard, meld, gameStates } from './src/game.js'
+import {
+  queues,
+  joinQueue,
+  leaveQueue,
+  removeFromAll
+} from './src/lobby.js'
+
+import {
+  startGame,
+  drawDiscard,
+  discard,
+  meld,
+  gameStates
+} from './src/game.js'
 
 const app = express()
 app.use(cors())
 const httpServer = http.createServer(app)
-const io = new Server(httpServer, { cors: { origin: '*' } })
+const io = new Server(httpServer, {
+  cors: { origin: '*' }
+})
 
-io.on('connection', socket => {
-  /* ────────── LOBBY ────────── */
-  socket.on('joinQueue', mode => {
-    // confirmação imediata
+// 🎮 Evento por jogador conectado
+io.on('connection', (socket) => {
+  console.log(`[+] Conectado: ${socket.id}`)
+
+  /* ───────────── LOBBY ───────────── */
+  socket.on('joinQueue', (mode) => {
     socket.emit('queueJoined', { mode })
 
     const match = joinQueue(mode, socket)
 
     if (match) {
       const { room, players } = match
+
+      players.forEach(p => {
+        p.join(room)
+        console.log(`[+] Adicionando ${p.id} na sala ${room}`)
+      })
+
       io.to(room).emit('matchFound', { room, players })
 
-      const initialState = startGame(room, players)
-      io.to(room).emit('gameStart', initialState)
+      const playerIds = players.map(p => p.id) // socket.id atual
+      const initialState = startGame(room, playerIds)
+
+
+      startGame(room, players)
+      io.to(room).emit('stateUpdate', gameStates[room])
+
     }
   })
 
-  socket.on('leaveQueue', mode => leaveQueue(mode, socket))
-  socket.on('disconnect', () => removeFromAll(socket))
+  socket.on('leaveQueue', (mode) => {
+    leaveQueue(mode, socket)
+  })
 
-  /* ────────── GAME ────────── */
+  socket.on('disconnect', () => {
+    removeFromAll(socket)
+    console.log(`[-] Desconectado: ${socket.id}`)
+  })
+
+  /* ───────────── GAME ───────────── */
+
   socket.on('drawDiscard', ({ room, fromPlayerId }) => {
     drawDiscard(room, socket.id, fromPlayerId)
-    io.to(room).emit('stateUpdate', gameStates[room])
+    syncState(room)
   })
 
   socket.on('discard', ({ room, card }) => {
     discard(room, socket.id, card)
-    io.to(room).emit('stateUpdate', gameStates[room])
+    syncState(room)
   })
 
   socket.on('meld', ({ room, cards }) => {
-    const res = meld(room, socket.id, cards)
-    if (res.error) socket.emit('invalidMeld', { reason: 'Grupo inválido' })
-    else           io.to(room).emit('stateUpdate', gameStates[room])
+    const result = meld(room, socket.id, cards)
+    if (result.error) {
+      socket.emit('invalidMeld', { reason: 'Grupo inválido' })
+    } else {
+      syncState(room)
+    }
   })
 })
 
+/* 🔁 Função auxiliar para emitir o estado do jogo */
+function syncState(room) {
+  const state = gameStates[room]
+  if (state) {
+    io.to(room).emit('stateUpdate', state)
+  }
+}
+
 httpServer.listen(3001, () =>
-  console.log('Lobby & Game server listening on :3001')
+  console.log('🟢 Lobby & Game server rodando em http://localhost:3001')
 )

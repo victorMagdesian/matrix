@@ -29,7 +29,7 @@
           v-for="p in players"
           :key="p"
           :label="p === myId ? 'Meu Descarte' : 'Desc. ' + (p ? p.slice(-4) : '')"
-          :topCard="state.discardPiles[p]?.slice(-1)[0] || null"
+          :topCard="state.DiscardPile[p]?.slice(-1)[0] || null"
           :fromPlayerId="p"
           @draw="onDraw"
         />
@@ -67,7 +67,7 @@ socket.on('connect', () => {
 
 // game state reactive
 const state = reactive({
-  hands: {}, discardPiles: {}, melds: {}, turnOrder: [], currentTurnIndex: 0
+  hands: {}, DiscardPile: {}, melds: {}, turnOrder: [], currentTurnIndex: 0
 })
 
 // selection for meld

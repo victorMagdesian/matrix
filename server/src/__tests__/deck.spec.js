@@ -29,21 +29,21 @@ describe('Deck module', () => {
   it('deal() distribui corretamente para 2 jogadores', () => {
     const deck = shuffle(buildDeck())
     const players = ['A','B']
-    const { hands, discardPiles } = deal(deck, 2, players)
+    const { hands, DiscardPile } = deal(deck, 2, players)
     expect(Object.keys(hands)).toEqual(players)
     expect(hands.A).toHaveLength(36)
     expect(hands.B).toHaveLength(36)
-    expect(discardPiles.A).toHaveLength(0)
-    expect(discardPiles.B).toHaveLength(0)
+    expect(DiscardPile.A).toHaveLength(0)
+    expect(DiscardPile.B).toHaveLength(0)
   })
 
   it('deal() distribui corretamente para 3 jogadores', () => {
     const deck = shuffle(buildDeck())
     const players = ['X','Y','Z']
-    const { hands, discardPiles } = deal(deck, 3, players)
+    const { hands, DiscardPile } = deal(deck, 3, players)
     expect(hands.X).toHaveLength(24)
     expect(hands.Y).toHaveLength(24)
     expect(hands.Z).toHaveLength(24)
-    expect(discardPiles.Z).toHaveLength(0)
+    expect(DiscardPile.Z).toHaveLength(0)
   })
 })

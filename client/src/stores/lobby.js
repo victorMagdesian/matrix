@@ -4,6 +4,7 @@ import { io } from 'socket.io-client'
 export const useLobbyStore = defineStore('lobby', {
   state: () => ({
     socket: null,
+    playerId: null,
     room:   null,
     players: [],
     status:  'idle',       // idle | waiting | matched
@@ -19,6 +20,13 @@ export const useLobbyStore = defineStore('lobby', {
         autoConnect: true,
         reconnectionAttempts: 5
       })
+      
+      this.socket.on('connect', () => {
+        this.playerId = this.socket.id
+        this.isReconnecting = false
+        console.log('🧩 Meu ID atual:', this.playerId)
+      })
+      
 
       /* eventos globais */
       this.socket.on('connect',    () => this.isReconnecting = false)

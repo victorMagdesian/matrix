@@ -11,8 +11,8 @@ describe('Game state initialization', () => {
     expect(state.hands.P1).toHaveLength(36)
     expect(state.hands.P2).toHaveLength(36)
     // Discards vazios
-    expect(state.discardPiles.P1).toHaveLength(0)
-    expect(state.discardPiles.P2).toHaveLength(0)
+    expect(state.DiscardPile.P1).toHaveLength(0)
+    expect(state.DiscardPile.P2).toHaveLength(0)
     // Turn order e index
     expect(state.turnOrder).toEqual(players)
     expect(state.currentTurnIndex).toBe(0)
