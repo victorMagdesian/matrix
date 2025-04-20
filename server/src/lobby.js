@@ -1,45 +1,59 @@
 // server/src/lobby.js
-
-export const queues = {
+const queues = {
   2: [],
   3: []
 }
 
-export function joinQueue(mode, socket) {
-  if (!queues[mode]) {
-    console.warn(`🚫 Fila inválida para modo: ${mode}`)
-    return null
+/**
+ * Enfileira jogador.
+ * Se houver jogadores suficientes, retorna { room, players[] }
+ */
+function joinQueue(mode, socket) {
+  const list = queues[mode]
+  if (!list) return
+
+  // evita duplicados
+  if (list.find(p => p.id === socket.id)) {
+    console.warn(`⚠️ Socket ${socket.id} já está na fila ${mode}`)
+    return
   }
 
-  // já na fila? evita duplicidade
-  if (queues[mode].some(s => s.id === socket.id)) {
-    console.log(`⚠️ Socket ${socket.id} já está na fila ${mode}`)
-    return null
-  }
+  list.push(socket)
+  console.log(`➕ Socket ${socket.id} entrou na fila ${mode} (${list.length}/${mode})`)
 
-  queues[mode].push(socket)
-  console.log(`➕ Socket ${socket.id} entrou na fila ${mode} (${queues[mode].length}/${mode})`)
-
-  if (queues[mode].length >= mode) {
-    const match = queues[mode].splice(0, mode)
+  if (list.length >= mode) {
+    const players = list.splice(0, mode)
     const room = `room_${Date.now()}`
-    const playerIds = match.map(s => s.id)
 
-    console.log(`✅ Match formado: ${playerIds.join(', ')} → Sala: ${room}`)
-    return { room, players: playerIds }
+    console.log(`✅ Match formado: ${players.map(p => p.id).join(', ')} → Sala: ${room}`)
+    return { room, players }
   }
-
-  return null
 }
 
-export function leaveQueue(mode, socket) {
-  if (!queues[mode]) return
-  queues[mode] = queues[mode].filter(s => s.id !== socket.id)
-  console.log(`🚪 Socket ${socket.id} saiu da fila ${mode}`)
+/**
+ * Remove jogador de uma fila.
+ */
+function leaveQueue(mode, socket) {
+  const list = queues[mode]
+  if (!list) return
+
+  const i = list.findIndex(p => p.id === socket.id)
+  if (i !== -1) {
+    list.splice(i, 1)
+    console.log(`🚪 Socket ${socket.id} saiu da fila ${mode}`)
+  }
 }
 
-export function removeFromAll(socket) {
-  for (const mode in queues) {
-    leaveQueue(mode, socket)
-  }
+/**
+ * Remove jogador de TODAS as filas.
+ */
+function removeFromAll(socket) {
+  [2, 3].forEach(mode => leaveQueue(mode, socket))
+}
+
+export {
+  queues,
+  joinQueue,
+  leaveQueue,
+  removeFromAll
 }

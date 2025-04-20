@@ -1,3 +1,4 @@
+// server/index.js
 import express from 'express'
 import http from 'http'
 import cors from 'cors'
@@ -15,51 +16,60 @@ import {
   drawDiscard,
   discard,
   meld,
+  advanceTurn,
   gameStates
 } from './src/game.js'
 
 const app = express()
 app.use(cors())
 const httpServer = http.createServer(app)
+
 const io = new Server(httpServer, {
   cors: { origin: '*' }
 })
 
+// 🎮 Evento por jogador conectado
 io.on('connection', (socket) => {
   console.log(`[+] Conectado: ${socket.id}`)
 
   /* ───────────── LOBBY ───────────── */
   socket.on('joinQueue', (mode) => {
+    console.log(`➕ Socket ${socket.id} entrou na fila ${mode}`)
     socket.emit('queueJoined', { mode })
 
     const match = joinQueue(mode, socket)
 
     if (match) {
       const { room, players } = match
+      const ids = players.map(p => p.id)
 
-      // Corrigido: players são IDs, não socket instances
-      players.forEach(playerId => {
-        const s = io.sockets.sockets.get(playerId)
-        if (!s) {
-          console.warn('⚠️ Socket não encontrado:', playerId)
-          return
+      // Confirma os sockets válidos
+      if (players.some(p => !p)) {
+        console.warn('⚠️ Um dos sockets está undefined:', players)
+        return
+      }
+
+      players.forEach(p => {
+        if (p && typeof p.join === 'function') {
+          p.join(room)
+        } else {
+          console.warn(`⚠️ Socket ${p?.id} não pôde entrar na sala`)
         }
-        s.join(room)
       })
 
+      io.to(room).emit('matchFound', { room, players: ids })
 
-      io.to(room).emit('matchFound', { room, players: players })
+      const initialState = startGame(room, ids)
+      console.log('🎲 Jogo iniciado na sala', room)
+      console.log(initialState)
 
-      console.log('🎮 startGame chamado com jogadores:', players)
-      const initialState = startGame(room, players)
-
-      console.log('📦 Estado inicial da sala:', initialState)
       io.to(room).emit('stateUpdate', initialState)
     }
   })
 
   socket.on('leaveQueue', (mode) => {
     leaveQueue(mode, socket)
+    console.log(`🚪 Socket ${socket.id} saiu da fila ${mode}`)
   })
 
   socket.on('disconnect', () => {
@@ -76,6 +86,7 @@ io.on('connection', (socket) => {
 
   socket.on('discard', ({ room, card }) => {
     discard(room, socket.id, card)
+    advanceTurn(room)
     syncState(room)
   })
 
@@ -89,11 +100,10 @@ io.on('connection', (socket) => {
   })
 })
 
-/* 🔁 Função auxiliar para emitir o estado do jogo */
+/* 🔁 Envia estado atualizado para todos os sockets da sala */
 function syncState(room) {
   const state = gameStates[room]
   if (state) {
-    console.log(`🛰️ Enviando stateUpdate para sala ${room}`)
     io.to(room).emit('stateUpdate', state)
   }
 }

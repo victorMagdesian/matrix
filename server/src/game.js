@@ -5,9 +5,10 @@ import { isValidMeld } from './validation.js'
 export const gameStates = {}
 
 export function startGame(room, playerIds) {
+  console.log('🎮 startGame chamado com jogadores:', playerIds)
+
   const deck = shuffle(buildDeck())
-  const mode = playerIds.length
-  const { hands, DiscardPile } = deal(deck, mode, playerIds)
+  const { hands, DiscardPile } = deal(deck, playerIds.length, playerIds)
 
   gameStates[room] = {
     hands,
@@ -18,7 +19,7 @@ export function startGame(room, playerIds) {
   }
 
   console.log(`🎲 Jogo iniciado na sala ${room}`)
-  console.dir(gameStates[room], { depth: null })
+  console.log(JSON.stringify(gameStates[room], null, 2))
 
   return gameStates[room]
 }
@@ -57,4 +58,11 @@ export function meld(room, playerId, cards) {
   s.melds[playerId].push(cards)
 
   return { success: true }
+}
+
+export function advanceTurn(room) {
+  const state = gameStates[room]
+  if (!state) return
+
+  state.currentTurnIndex = (state.currentTurnIndex + 1) % state.turnOrder.length
 }
