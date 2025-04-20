@@ -1,10 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
+/* 1. Diretrizes do Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* custom base */
-html {
-  @apply bg-gray-900 text-gray-100;
+/* 2. Seu CSS personalizado dentro de um layer apropriado */
+@layer base {
+  html {
+    @apply bg-gray-900 text-gray-100;
+  }
 }
