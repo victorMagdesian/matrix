@@ -1,77 +1,53 @@
-// server/index.js
 import express from 'express'
-import http     from 'http'
-import cors     from 'cors'
+import cors    from 'cors'
+import http    from 'http'
 import { Server } from 'socket.io'
 
-import { queues, joinQueue, leaveQueue, removeFromAll } from './src/lobby.js'
 import {
-  startGame, drawDiscard, discard, meld,
-  advanceTurn, gameStates
+  queues, joinQueue, leaveQueue, removeFromAll
+} from './src/lobby.js'
+
+import {
+  startGame, drawDeck, discard, meld,
+  gameStates, checkVictory
 } from './src/game.js'
 
 const app = express()
 app.use(cors())
-
 const httpServer = http.createServer(app)
 const io = new Server(httpServer, { cors: { origin: '*' } })
 
-/* ───────── helper ───────── */
-const syncState = (room) => {
-  const state = gameStates[room]
-  if (state) io.to(room).emit('stateUpdate', state)
+const sync = room => {
+  const st = gameStates[room]
+  if (st) io.to(room).emit('stateUpdate', st)
 }
 
-/* ───────── conexões ───────── */
-io.on('connection', (socket) => {
-  console.log(`🟢 ${socket.id} conectado`)
+io.on('connection', socket => {
+  console.log('🟢', socket.id, 'conectado')
 
-  /* LOBBY */
-  socket.on('joinQueue', (mode) => {
-    const match = joinQueue(mode, socket)
-    if (!match) return
+  /* Lobby */
+  socket.on('joinQueue', mode => { /* … */ })
+  socket.on('leaveQueue', mode => leaveQueue(mode, socket))
+  socket.on('disconnect',    () => removeFromAll(socket))
 
-    const { room, players } = match
-    const ids = players.map(p => p.id)
+  /* Gameplay */
+  socket.on('drawDeck',   ({ room })        => { drawDeck(room, socket.id);        sync(room) })
+  socket.on('discard',    ({ room, card })  => { discard(room, socket.id, card);   sync(room) })
+  socket.on('meld',       ({ room, cards }) => { meld(room, socket.id, cards);     sync(room) })
 
-    players.forEach(p => p.join(room))
-
-    const initialState = startGame(room, ids)
-
-    // 1º envia confirmação + IDs
-    io.to(room).emit('matchFound', { room, players: ids })
-    // 2º logo em seguida o estado completo
-    io.to(room).emit('stateUpdate', initialState)
-
-    console.log(`🎮 Match ${room} criado com ${ids.join(', ')}`)
+  /* Checagem de vitória */
+  socket.on('checkVictory', ({ room }) => {
+    const won = checkVictory(room, socket.id)
+    socket.emit('victoryResult', { won })
   })
 
-  socket.on('leaveQueue', (mode) => leaveQueue(mode, socket))
-  socket.on('disconnect',      () => removeFromAll(socket))
-
-  /* GAMEPLAY */
-  socket.on('drawDiscard', ({ room, fromPlayerId }) => {
-    drawDiscard(room, socket.id, fromPlayerId)
-    syncState(room)
-  })
-
-  socket.on('discard', ({ room, card }) => {
-    discard(room, socket.id, card)
-    syncState(room)
-  })
-
-  socket.on('meld', ({ room, cards }) => {
-    const res = meld(room, socket.id, cards)
-    res.error ? socket.emit('invalidMeld', res) : syncState(room)
-  })
-
-  /* RE‑SYNC manual (caso o front perca o primeiro push) */
+  /* Re‐sync manual */
   socket.on('getState', ({ room }) => {
-    const state = gameStates[room]
-    if (state) socket.emit('stateUpdate', state)
+    const st = gameStates[room]
+    if (st) socket.emit('stateUpdate', st)
   })
 })
 
 httpServer.listen(3001, () =>
-  console.log('🚀 Servidor em http://localhost:3001')
+  console.log('🚀  Servidor em http://localhost:3001')
 )

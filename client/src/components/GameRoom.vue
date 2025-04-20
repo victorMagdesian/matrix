@@ -1,47 +1,77 @@
-<!-- client/src/components/GameRoom.vue -->
 <template>
   <div v-if="room" class="game-room mx-auto max-w-4xl space-y-6">
+    <TurnIndicator :show="myTurn" />
+
     <!-- Cabeçalho -->
     <div class="flex justify-between items-center">
-      <h2 class="text-2xl font-bold">
-        Sala: <span class="text-primary">{{ room }}</span>
-      </h2>
-      <p class="text-sm">
-        Turno: <strong>{{ currentPlayerLabel }}</strong>
-        <span v-if="myTurn"> · {{ phaseLabel }}</span>
-      </p>
+      <div>
+        <h2 class="text-2xl font-bold">
+          Sala: <span class="text-primary">{{ room }}</span>
+        </h2>
+        <p class="text-sm">
+          Turno: <strong>{{ currentLabel }}</strong>
+          <span v-if="myTurn"> · {{ phaseLabel }}</span>
+        </p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button
+          class="px-4 py-1 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600"
+          @click="checkVictory"
+        >
+          Checar vitória
+        </button>
+      </div>
     </div>
 
-    <!-- Canvas ou animações -->
+    <!-- Mensagem de vitória -->
+    <div v-if="victoryMsg" class="text-center text-lg font-semibold text-green-400">
+      {{ victoryMsg }}
+    </div>
+
+    <!-- Botão comprar -->
+    <div v-if="myTurn && state.phase === 'draw'" class="text-center">
+      <button
+        class="px-6 py-2 rounded-lg bg-yellow-400 text-black font-semibold shadow-md"
+        @click="socket.emit('drawDeck', { room })"
+      >
+        Comprar carta
+      </button>
+    </div>
+
     <MatrixCanvas :room="room" />
 
-    <!-- Área principal -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Mão do jogador -->
       <Hand
         class="lg:col-span-2"
         :cards="myHand"
         :selected="selected"
         :phase="state.phase"
         :myTurn="myTurn"
+        :autoDiscard="autoDiscard"
         @update:selected="selected = $event"
         @discard="onDiscard"
       />
 
-      <!-- Pilhas de descarte -->
       <DiscardPile
         class="lg:col-span-1"
         :DiscardPile="state.DiscardPile"
         :cards="state.cards"
-        @draw="onDraw"
       />
     </div>
 
-    <!-- Botão de descartar (opcional) -->
-    <div v-if="myTurn && state.phase === 'discard'" class="flex justify-center">
+    <!-- Histórico global de descartes -->
+    <GlobalDiscard
+      :ids="state.allDiscards"
+      :cards="state.cards"
+    />
+
+    <!-- Botão descartar -->
+    <div
+      v-if="myTurn && state.phase === 'discard' && selected.length === 1"
+      class="flex justify-center"
+    >
       <button
-        class="px-6 py-2 mt-4 rounded-lg bg-yellow-400 text-black font-semibold disabled:opacity-40"
-        :disabled="selected.length !== 1"
+        class="px-6 py-2 mt-4 rounded-lg bg-yellow-400 text-black font-semibold"
         @click="onDiscard(mySelectedCard)"
       >
         Descartar carta selecionada
@@ -51,90 +81,87 @@
 </template>
 
 <script setup>
-/* eslint-disable vue/no-mutating-props */
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useLobbyStore } from '../stores/lobby'
+import TurnIndicator from './TurnIndicator.vue'
 import MatrixCanvas  from './MatrixCanvas.vue'
 import Hand          from './Hand.vue'
 import DiscardPile   from './DiscardPile.vue'
+import GlobalDiscard from './GlobalDiscard.vue'
 
-/* ───────── refs globais ───────── */
-const lobby  = useLobbyStore()
-const socket = lobby.socket
-const room   = computed(() => lobby.room)
-const myId   = computed(() => lobby.playerId || socket.id)
+/* refs globais */
+const lobby     = useLobbyStore()
+const socket    = lobby.socket
+const room      = computed(() => lobby.room)
+const myId      = computed(() => lobby.playerId || socket.id)
 
-/* ───────── estado do jogo ───────── */
+/* estado sincronizado */
 const state = reactive({
-  cards       : {},       // id -> { color, value, owner }
-  hands       : {},
-  DiscardPile : {},       // pid -> [id]
-  melds       : {},
-  turnOrder   : [],
-  currentTurnIdx : 0,
-  phase          : 'draw'
+  cards: {}, 
+  hands: {}, 
+  DiscardPile: {}, 
+  drawPile: [],
+  allDiscards: [], 
+  melds: {},
+  turnOrder: [], 
+  currentTurnIdx: 0, 
+  phase: 'draw'
 })
 
-/* ───────── seleção na mão ───────── */
-const selected = ref([])
+/* seleção local */
+const selected   = ref([])
+const victoryMsg = ref('')
 
-/* ───────── computeds auxiliares ───────── */
-const currentIdx  = computed(() => state.currentTurnIdx)
-const myTurn      = computed(() => state.turnOrder[currentIdx.value] === myId.value)
-
-const phaseLabel = computed(() =>
-  state.phase === 'draw' ? 'comprar' :
-  state.phase === 'discard' ? 'descartar' : ''
+/* computeds */
+const myTurn = computed(() => state.turnOrder[state.currentTurnIdx] === myId.value)
+const phaseLabel = computed(() => state.phase === 'draw' ? 'comprar' : 'descartar')
+const currentLabel = computed(() =>
+  myTurn.value
+    ? 'Você'
+    : (state.turnOrder[state.currentTurnIdx] || '').slice(-4)
 )
 
-const currentPlayerLabel = computed(() => {
-  const pid = state.turnOrder[currentIdx.value] || ''
-  return pid === myId.value ? 'Você' : pid.slice(-4)
+const myHand = computed(() => {
+  const list = state.hands[myId.value] || []
+  return list.map(cid => ({ __uid: cid, ...state.cards[cid] }))
 })
 
-const myHand = computed(() => {
-  if (!state.cards) return []
-  return Object.entries(state.cards)
-    .filter(([, c]) => c.owner === myId.value)
-    .map(([id, c]) => ({ __uid: id, ...c }))
-})
+const autoDiscard = computed(() =>
+  myTurn.value && state.phase === 'discard' && myHand.value.length === 12
+)
 
 const mySelectedCard = computed(() =>
   myHand.value.find(c => selected.value.includes(c.__uid))
 )
 
-/* ───────── helpers ───────── */
-function requestState (r) {
-  if (r) socket.emit('getState', { room: r })
-}
-
-/* ───────── listeners ───────── */
+/* sockets */
 onMounted(() => {
   socket.on('stateUpdate', data => Object.assign(state, data))
-  requestState(room.value)         // garante sync se montou tarde
+  socket.on('victoryResult', ({ won }) => {
+    victoryMsg.value = won ? '🎉 Você venceu!' : 'Ainda não é vitória.'
+    setTimeout(() => (victoryMsg.value = ''), 3000)
+  })
+  socket.emit('getState', { room: room.value })
 })
+watch(room, r => r && socket.emit('getState', { room: r }))
 
-watch(room, (n, o) => {
-  if (n && n !== o) requestState(n)
-})
-
-/* ───────── ações de UI ───────── */
-function onDraw(fromPlayerId) {
-  if (myTurn.value && state.phase === 'draw') {
-    socket.emit('drawDiscard', { room: room.value, fromPlayerId })
-  }
-}
-
+/* ações */
 function onDiscard(card) {
-  if (!card || !myTurn.value || state.phase !== 'discard') return
   socket.emit('discard', {
     room: room.value,
     card: { color: card.color, value: card.value }
   })
   selected.value = []
 }
+
+function checkVictory() {
+  socket.emit('checkVictory', { room: room.value })
+}
 </script>
 
 <style scoped>
-.game-room { display: flex; flex-direction: column; }
+.game-room {
+  display: flex;
+  flex-direction: column;
+}
 </style>
