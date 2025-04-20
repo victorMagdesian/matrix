@@ -10,14 +10,15 @@ describe('lobby store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     store = useLobbyStore()
-
-    // mock do socket.io-client
+  
     mockSocket = {
       emit: vi.fn(),
-      on: vi.fn(),
+      on:   vi.fn(),
     }
     store.socket = mockSocket
+    store.connect()   // ⚠️ registra os .on('disconnect', ...) no mock
   })
+  
 
   it('deve entrar na fila ao chamar join()', () => {
     store.join(2)
