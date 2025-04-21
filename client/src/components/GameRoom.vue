@@ -1,5 +1,6 @@
 <template>
   <div v-if="room" class="game-room mx-auto max-w-4xl space-y-6">
+
     <TurnIndicator :show="myTurn" />
 
     <!-- Cabeçalho -->
@@ -51,12 +52,6 @@
         @update:selected="selected = $event"
         @discard="onDiscard"
       />
-
-      <DiscardPile
-        class="lg:col-span-1"
-        :DiscardPile="state.DiscardPile"
-        :cards="state.cards"
-      />
     </div>
 
     <!-- Histórico global de descartes -->
@@ -65,18 +60,19 @@
       :cards="state.cards"
     />
 
-    <!-- Botão descartar -->
+    <!-- Botão descartar selecionado -->
     <div
-      v-if="myTurn && state.phase === 'discard' && selected.length === 1"
+      v-if="myTurn && state.phase === 'discard' && mySelectedCard"
       class="flex justify-center"
     >
       <button
         class="px-6 py-2 mt-4 rounded-lg bg-yellow-400 text-black font-semibold"
-        @click="onDiscard(mySelectedCard)"
+        @click="onDiscard(mySelectedCard.id)"
       >
-        Descartar carta selecionada
+        Descartar carta
       </button>
     </div>
+
   </div>
 </template>
 
@@ -84,35 +80,35 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useLobbyStore } from '../stores/lobby'
 import TurnIndicator from './TurnIndicator.vue'
-import MatrixCanvas  from './MatrixCanvas.vue'
-import Hand          from './Hand.vue'
-import DiscardPile   from './DiscardPile.vue'
+import MatrixCanvas from './MatrixCanvas.vue'
+import Hand from './Hand.vue'
+import DiscardPile from './DiscardPile.vue'
 import GlobalDiscard from './GlobalDiscard.vue'
 
-/* refs globais */
-const lobby     = useLobbyStore()
-const socket    = lobby.socket
-const room      = computed(() => lobby.room)
-const myId      = computed(() => lobby.playerId || socket.id)
+/* Globals */
+const lobby = useLobbyStore()
+const socket = lobby.socket
+const room = computed(() => lobby.room)
+const myId = computed(() => lobby.playerId || socket.id)
 
-/* estado sincronizado */
+/* Synced state */
 const state = reactive({
-  cards: {}, 
-  hands: {}, 
-  DiscardPile: {}, 
+  cards: {},
+  hands: {},
+  DiscardPile: {},
   drawPile: [],
-  allDiscards: [], 
+  allDiscards: [],
   melds: {},
-  turnOrder: [], 
-  currentTurnIdx: 0, 
+  turnOrder: [],
+  currentTurnIdx: 0,
   phase: 'draw'
 })
 
-/* seleção local */
-const selected   = ref([])
+/* Local selection */
+const selected = ref([])
 const victoryMsg = ref('')
 
-/* computeds */
+/* Computeds */
 const myTurn = computed(() => state.turnOrder[state.currentTurnIdx] === myId.value)
 const phaseLabel = computed(() => state.phase === 'draw' ? 'comprar' : 'descartar')
 const currentLabel = computed(() =>
@@ -123,7 +119,7 @@ const currentLabel = computed(() =>
 
 const myHand = computed(() => {
   const list = state.hands[myId.value] || []
-  return list.map(cid => ({ __uid: cid, ...state.cards[cid] }))
+  return list.map(cid => ({ id: cid, ...state.cards[cid] }))
 })
 
 const autoDiscard = computed(() =>
@@ -131,22 +127,30 @@ const autoDiscard = computed(() =>
 )
 
 const mySelectedCard = computed(() =>
-  myHand.value.find(c => selected.value.includes(c.__uid))
+  myHand.value.find(c => selected.value.includes(c.id))
 )
 
-/* sockets */
+/* Socket events */
 onMounted(() => {
   socket.on('stateUpdate', data => Object.assign(state, data))
   socket.on('victoryResult', ({ won }) => {
-    victoryMsg.value = won ? '🎉 Você venceu!' : 'Ainda não é vitória.'
+    victoryMsg.value = won ? 'Você venceu!' : 'Ainda não é vitória.'
     setTimeout(() => (victoryMsg.value = ''), 3000)
   })
   socket.emit('getState', { room: room.value })
 })
+
 watch(room, r => r && socket.emit('getState', { room: r }))
 
-/* ações */
-function onDiscard(card) {
+/* Actions */
+function onDraw(fromPlayerId) {
+  socket.emit('drawDiscard', { room: room.value, from: fromPlayerId })
+}
+
+function onDiscard(cardOrId) {
+  const id = typeof cardOrId === 'object' ? cardOrId.id : cardOrId
+  const card = state.cards[id]
+  if (!card) return
   socket.emit('discard', {
     room: room.value,
     card: { color: card.color, value: card.value }

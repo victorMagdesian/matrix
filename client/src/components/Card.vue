@@ -1,40 +1,62 @@
 <template>
   <div
-    class="card flex items-center justify-center w-12 h-16 sm:w-16 sm:h-24 rounded-md font-bold text-white border-2 transition-transform duration-150 cursor-pointer select-none"
-    :class="[
-      bgClass,
-      selected
-        ? 'border-yellow-300 scale-110 shadow-lg z-10'
-        : 'border-gray-500 hover:scale-105 hover:shadow'
-    ]"
+    class="card relative cursor-pointer select-none"
+    :style="{
+      width: '3.5rem',
+      height: '5rem',
+      backgroundColor: bgColor,
+      borderRadius: '0.5rem',
+      padding: '0.15rem',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }
+    "
     @click="$emit('click')"
   >
-    {{ value }}
+    <!-- Borda branca interna -->
+    <div
+      :style="{
+        position: 'absolute', top: '0', left: '0', right: '0', bottom: '0',
+        border: '4px solid white', borderRadius: '0.35rem',
+      }"
+    ></div>
+
+    <!-- Círculo central -->
+    <div
+      :style="{
+        position: 'relative',
+        width: '70%', height: '70%',
+        margin: 'auto', top: '15%',
+        backgroundColor: 'white',
+        borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }"
+    >
+      <span
+        :style="{
+          color: bgColor,
+          fontSize: '1.5rem',
+          fontWeight: 'bold'
+        }"
+      >
+        {{ value }}
+      </span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { defineProps, computed } from 'vue'
 
 const props = defineProps({
-  color: String,
-  value: Number,
-  selected: Boolean
+  color: { type: String, default: '' },
+  value: { type: [String, Number], required: true }
 })
 
-const bgClass = computed(() => {
-  switch (props.color) {
-    case 'red': return 'bg-red-600'
-    case 'blue': return 'bg-blue-600'
-    case 'green': return 'bg-green-600'
-    case 'yellow': return 'bg-yellow-300 text-black'
-    default: return 'bg-gray-400'
-  }
-})
-</script>
-
-<style scoped>
-.card {
-  font-size: 1.25rem;
+const colorMap = {
+  red:    '#D32F2F',
+  blue:   '#1976D2',
+  green:  '#388E3C',
+  yellow: '#FBC02D'
 }
-</style>
+
+const bgColor = computed(() => colorMap[props.color] || '#555')
+</script>

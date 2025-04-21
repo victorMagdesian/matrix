@@ -1,29 +1,22 @@
 <template>
-  <div class="piles flex flex-col lg:flex-row gap-4 justify-center">
-    <div
-      v-for="(ids, pid) in DiscardPile"
-      :key="pid"
-      class="pile flex flex-col items-center"
-    >
-      <Card
-        v-if="ids.length"
-        v-bind="cards[ids.at(-1)]"
-      />
-      <span class="text-xs mt-1">
-        P{{ pid.slice(-4) }} ({{ ids.length }})
-      </span>
+  <div class="discard-piles flex gap-4">
+    <Card
+      v-for="card in cards"
+      :key="card.id"
+      :color="card.color"
+      :value="card.value"
+      @click="$emit('draw')"
+    />
+    <div v-if="!cards.length" class="w-14 h-20 rounded bg-gray-700 flex items-center justify-center text-xs italic text-gray-400">
+      Vazio
     </div>
   </div>
 </template>
 
 <script setup>
+import { defineProps, defineEmits } from 'vue'
 import Card from './Card.vue'
-defineProps({
-  DiscardPile: { type: Object, default: () => ({}) },
-  cards:       { type: Object, default: () => ({}) }
-})
-</script>
 
-<style scoped>
-.pile { min-width: 60px; }
-</style>
+const props = defineProps({ cards: Array })
+const emit = defineEmits(['draw'])
+</script>

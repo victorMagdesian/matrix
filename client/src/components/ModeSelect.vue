@@ -27,10 +27,3 @@ function join(mode) {
   lobby.join(mode)
 }
 </script>
-
-<style scoped>
-.mode-select {
-  min-height: 100vh;
-  background-color: #1f2937; /* bg-gray-800 */
-}
-</style>
